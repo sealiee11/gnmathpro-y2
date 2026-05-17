@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @font-face {
+    font-family: 'mc';
+    src: url('https://cdn.jsdelivr.net/gh/sealiee11/gnmathstuff@main/minecraft.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+}
+        body {
+            background: #fc2651;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            color: #fff;
+            flex-direction: column;
+            gap: 16px;
+        }
+        #logo { font-family: 'mc', monospace; font-size: 5rem; font-weight: 700; letter-spacing: 2px; }
+        #status { font-size: 4rem; font-weight: 700; letter-spacing: 2px; }
+        #detail { font-size: 1.1rem; opacity: 0.85; }
+        #error {
+            display: none;
+            max-width: 600px;
+            text-align: center;
+            background: rgba(0,0,0,0.25);
+            padding: 20px 28px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div id="logo">gn-math</div>
+    <div id="status">Loading...</div>
+    <div id="detail">Preparing proxy...</div>
+    <div id="error"></div>
+    <script>
+        // ---- CONFIG (override per deploy by editing these or via ?cdn=/?sw= query) ----
+        // CDN base where the /stuf/ proxy assets live. Must end with a trailing slash.
+        const DEFAULT_CDN = "https://cdn.jsdelivr.net/gh/sealiee11/gnmathpr0---y@main/";
+        // Path to sw.js. MUST be same-origin as this page (browser requirement).
+        // Relative ("./sw.js", "proxy/sw.js") or absolute ("/p/sw.js") both work.
+        const DEFAULT_SW_PATH = "./sw.js";
+        // Target site to proxy to after the SW is ready.
+        const TARGET_SITE = "https://toustream.movietrunk.com/";
+        // -----------------------------------------------------------------------------
+
+        const qs = new URLSearchParams(location.search);
+        const CDN = (qs.get("cdn") || DEFAULT_CDN).replace(/\/?$/, "/");
+        const SW_PATH = qs.get("sw") || DEFAULT_SW_PATH;
+
+        const statusEl = document.getElementById("status");
+        const detailEl = document.getElementById("detail");
+        const errorEl  = document.getElementById("error");
+
+        const showError = msg => {
+            statusEl.textContent = "Error";
+            detailEl.style.display = "none";
+            errorEl.style.display = "block";
+            errorEl.textContent = msg;
+        };
+
+        const setDetail = msg => { detailEl.textContent = msg; };
+
+        const loadScript = src => new Promise((resolve, reject) => {
+            const s = document.createElement("script");
+            s.src = src;
+            s.onload = resolve;
+            s.onerror = () => reject(new Error("Failed to load: " + src));
+            document.head.appendChild(s);
+        });
+
+        const waitForSW = (sw, state, ms) => new Promise((resolve, reject) => {
+            if (sw.state === state) { resolve(); return; }
+            const t = setTimeout(() => reject(new Error("SW timeout")), ms);
+            sw.addEventListener("statechange", function h() {
+                if (sw.state === state) { clearTimeout(t); sw.removeEventListener("statechange", h); resolve(); }
+                else if (sw.state === "redundant") { clearTimeout(t); sw.removeEventListener("statechange", h); reject(new Error("SW redundant")); }
+            });
+        });
+
+        const getActiveSW = async (reg, ms) => {
+            if (reg.active) return reg.active;
+            const sw = reg.installing || reg.waiting;
+            if (!sw) throw new Error("No SW in registration");
+            await waitForSW(sw, "activated", ms);
+            return reg.active;
+        };
+
+        (async () => {
+            try {
+                if (!("serviceWorker" in navigator)) {
+                    showError("Service workers not supported. Use a modern browser over HTTPS.");
+                    return;
+                }
+
+                // Resolve sw.js to an absolute URL based on this page's location,
+                // then derive the SW directory which becomes both the registration
+                // scope and the base for the UV prefix.
+                const swURL = new URL(SW_PATH, location.href);
+                if (swURL.origin !== location.origin) {
+                    showError("sw.js must be on the same origin as this page. Got: " + swURL.origin);
+                    return;
+                }
+                const swDir = swURL.pathname.replace(/[^/]*$/, "");
+                const uvPrefix = swDir + "service/";
+
+                setDetail("Loading scripts...");
+                await loadScript(CDN + "stuf/uv.bundle.js");
+                await loadScript(CDN + "stuf/uv.config.js");
+                await loadScript(CDN + "stuf/baremux/index.js");
+
+                if (typeof self.__uv$config === "undefined") { showError("UV config failed to load."); return; }
+                if (typeof BareMux === "undefined") { showError("BareMux failed to load."); return; }
+
+                // Override prefix so it lives inside the SW's scope.
+                self.__uv$config.prefix = uvPrefix;
+
+                setDetail("Setting up transport...");
+                const conn = new BareMux.BareMuxConnection(CDN + "stuf/baremux/worker.js");
+                await conn.setTransport(CDN + "stuf/epoxy/index.mjs", [{ wisp: "wss://luminal.cc/wisp/" }]);
+
+                setDetail("Registering service worker...");
+                // Pass CDN to sw.js via query so it can importScripts from the right place.
+                const swScript = swURL.pathname + "?cdn=" + encodeURIComponent(CDN);
+                const reg = await navigator.serviceWorker.register(swScript, { scope: swDir });
+
+                setDetail("Waiting for service worker...");
+                await getActiveSW(reg, 15000);
+
+                setDetail("Redirecting...");
+                location.href = uvPrefix + self.__uv$config.encodeUrl(TARGET_SITE);
+
+            } catch (err) {
+                console.error(err);
+                showError("Error: " + err.message);
+            }
+        })();
+    </script>
+</body>
+</html>

